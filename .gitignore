@@ -35,3 +35,7 @@ output.json
 obj/
 .externalNativeBuild
 app/libs/
+.gitignore
+build.gradle
+libs/
+src/main/AndroidManifest.xml

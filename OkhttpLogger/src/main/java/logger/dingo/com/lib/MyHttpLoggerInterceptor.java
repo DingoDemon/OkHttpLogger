@@ -1,4 +1,4 @@
-package logger.dingo.com.okhttplogger;
+package logger.dingo.com.lib;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -17,16 +17,23 @@ import okhttp3.internal.http.HttpHeaders;
 import okhttp3.internal.platform.Platform;
 import okio.Buffer;
 
-import static android.util.Log.INFO;
+import static okhttp3.internal.platform.Platform.INFO;
 
 public class MyHttpLoggerInterceptor implements Interceptor {
     static final Charset UTF_8 = Charset.forName("UTF-8");
     private volatile Level level;
     private Logger logger;
 
+    public MyHttpLoggerInterceptor(Level level) {
+        this.level = level;
+    }
 
     public MyHttpLoggerInterceptor() {
-        this(Level.NORMAL, Logger.DEFAULT);
+        this(Level.NORMAL,Logger.DEFAULT);
+    }
+
+    public MyHttpLoggerInterceptor(Logger logger) {
+        this.logger = logger;
     }
 
     public MyHttpLoggerInterceptor(Level level, Logger logger) {
@@ -46,7 +53,7 @@ public class MyHttpLoggerInterceptor implements Interceptor {
         Request request = chain.request();
         if (this.level == Level.NONE) {
             return chain.proceed(request);
-        } else {
+        }else {
             this.logRequest(request, chain.connection());
             long current = System.nanoTime();
 
@@ -70,31 +77,35 @@ public class MyHttpLoggerInterceptor implements Interceptor {
         RequestBody requestBody = request.body();
         boolean hasBody = requestBody != null;
         Protocol protocol = connection != null ? connection.protocol() : Protocol.HTTP_1_1;
-        StringBuilder stringBuilder = new StringBuilder();
+        StringBuilder builder = new StringBuilder();
 
         try {
             String info = "--> " + request.method() + ' ' + request.url() + ' ' + protocol + " \n";
-            stringBuilder.append(info);
+            builder.append(info);
             if (logHeaders) {
                 Headers headers = request.headers();
 
                 for (int i = 0; i < headers.size(); i++) {
-                    stringBuilder.append("\t<Headers：========" + headers.name(i) + ": " + headers.value(i) + "========> \n");
+                    builder.append("\t<<=====" + headers.name(i) + ": " + headers.value(i) + "=====>> \n");
                 }
-            }
-            stringBuilder.append(" ");
-            if (!onlyHeader && hasBody) {
-                if (onlyTextMessage(requestBody.contentType())) {
-                    this.appendBodyInfo(request, stringBuilder);
-                } else {
-                    stringBuilder.append("\tbody: maybe [file part]  , ignored! \n");
+
+                builder.append(" ");
+                if (!onlyHeader && hasBody) {
+                    if (onlyTextMessage(requestBody.contentType())&&requestBody.contentLength()!=0) {
+                        this.appendBodyInfo(request, builder);
+                    } else if(requestBody.contentLength()==0){
+                        builder.append("\trequestBody with 0 Length Content \n");
+                    }else{
+                        builder.append("\tbody: maybe [file part]  , ignored! \n");
+
+                    }
                 }
             }
         } catch (Exception e) {
             logger.log("<-- HTTP FAILED: " + e);
         } finally {
-            stringBuilder.append("\n --> END " + request.method());
-            logger.log(stringBuilder.toString());
+            builder.append("\n --> END " + request.method());
+            logger.log(builder.toString());
         }
 
     }
@@ -119,52 +130,55 @@ public class MyHttpLoggerInterceptor implements Interceptor {
 
 
     private Response logResponse(Response response, long ms) {
-        ResponseBody responseBody = response.body();
+
+        Response.Builder var4 = response.newBuilder();
+        Response responseCopy = var4.build();
+        ResponseBody responseBody = responseCopy.body();
         boolean onlyHeader = this.level == Level.HEADERS;
         boolean logHeaders = this.level == Level.HEADERS || this.level == Level.NORMAL;
-        boolean logBody = this.level == Level.BODY || this.level == Level.NORMAL;
         boolean fail = false;
         StringBuilder stringBuilder = new StringBuilder();
 
+        Response responseCopyResult;
+
         try {
             stringBuilder.append("<-- " + response.code() + ' ' + response.message() + ' ' + response.request().url() + " (" + ms + "ms） \n");
-            if (!logHeaders && !logBody) {
+            if (!logHeaders) {
                 return response;
             }
 
-            if (logHeaders) {
-                Headers headers = response.headers();
-                for (int i = 0; i < headers.size(); i++) {
-                    stringBuilder.append("\t<Headers========" + headers.name(i) + ": " + headers.value(i) + "========> \n");
-                }
+            Headers headers = response.headers();
+
+            for (int i = 0; i < headers.size(); i++) {
+                stringBuilder.append("\t<<=====" + headers.name(i) + ": " + headers.value(i) + "=====>> \n");
             }
 
             stringBuilder.append(" ");
             if (onlyHeader || !HttpHeaders.hasBody(response)) {
                 return response;
             }
-
             if (!onlyTextMessage(responseBody.contentType())) {
                 stringBuilder.append("\tbody: maybe [file part] , too large too print , ignored!");
                 return response;
             }
-
             String bodyString = responseBody.string();
-            stringBuilder.append("\t<body~~~~~~~~~: "  + bodyString + "~~~~~~~~>");
+            stringBuilder.append("\t\n\"《----body:" + bodyString + "----》\n");
+            responseBody = ResponseBody.create(responseBody.contentType(), bodyString);//Are you reading the response body 2x? You can only call string() once.
+            responseCopyResult = response.newBuilder().body(responseBody).build();
         } catch (Exception exception) {
-            stringBuilder.append("\n <-- END HTTP");
+            stringBuilder.append("<-- END HTTP");
             logger.log(stringBuilder.toString());
             fail = true;
             return response;
         } finally {
             if (!fail) {
-                stringBuilder.append("\n <-- END HTTP");
+                stringBuilder.append("<-- END HTTP");
                 logger.log(stringBuilder.toString());
             }
 
         }
 
-        return response;
+        return responseCopyResult;
     }
 
 
@@ -179,7 +193,7 @@ public class MyHttpLoggerInterceptor implements Interceptor {
                 c = mediaType.charset(UTF_8);
             }
 
-            builder.append("\t<body~~~~~~~~~: " + buffer.readString(c) + "~~~~~~~~>");
+            builder.append("《-----------\tbody: " + buffer.readString(c)+"-----------》");
         } catch (Exception exception) {
             exception.printStackTrace();
         }
@@ -208,7 +222,7 @@ public class MyHttpLoggerInterceptor implements Interceptor {
         BODY,
         NORMAL;
 
-        private Level() {
+        Level() {
 
         }
     }
