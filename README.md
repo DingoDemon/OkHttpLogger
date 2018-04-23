@@ -2,7 +2,7 @@
 
 recomposed from Logging Interceptor https://github.com/square/okhttp/tree/master/okhttp-logging-interceptor
 
-you will get direct information for log when you use okhttp/retrofit。
+you will get direct information in logcat when you use okhttp/retrofit。
 
 #### how to use :
 
