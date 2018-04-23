@@ -17,5 +17,5 @@ OkHttpClient client = new OkHttpClient.Builder()
 ## Download
 
 ```
-compile 'Dingo.Demon:OkhttpLogger:1.0'
+compile 'Dingo.Demon:lib:1.0'
 ```
