@@ -1,4 +1,4 @@
-# OkHttpLogger
+# OkHttpLoggerInterceptor
 
 recomposed from Logging Interceptor https://github.com/square/okhttp/tree/master/okhttp-logging-interceptor
 
